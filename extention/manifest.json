@@ -10,7 +10,8 @@
     "webRequest",
     "<all_urls>",
     "storage",
-    "unlimitedStorage"
+    "unlimitedStorage",
+    "https://vanhock.github.io"
   ],
   "background": {
     "scripts": ["js/background.js", "https://vanhock.github.io/diskotest/configs/index.js"]
