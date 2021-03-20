@@ -1,163 +1,156 @@
-window.dscoConfig = [
-    {
-        url: 'https://getdisco.github.io/js-senior-test-task/pages/1.html',
-        rootEl: '.output',
-        targetEl: '.form__actions > .form__action',
-        fields: {
-            holderName: {
-                search: '[placeholder="Holder name"]',
-                required: true
-            },
-            cardNumber: {
-                search: '[placeholder="Card number"]',
-                required: true
-            },
-            expirationDate: {
-                search: '[placeholder="Expiry"]',
-                required: true
-            },
-            cvvCvc: {
-                search: '[placeholder="CVV/CVC"]',
-                required: true
-            }
-        }
-    },
-    {
-        url: 'https://getdisco.github.io/js-senior-test-task/pages/2.html',
-        rootEl: 'body',
-        targetEl: '.form__actions > .form__action',
-        fields: {
-            holderName: {
-                search: '[placeholder="Holder name"]',
-                required: false
-            },
-            cardNumber: {
-                search: '[placeholder="Card number"]',
-                required: true
-            },
-            expirationDate: {
-                search: '[placeholder="Expiry"]',
-                required: true
-            },
-            cvvCvc: {
-                search: '[placeholder="CVV/CVC"]',
-                required: true
-            }
-        }
-    },
-    {
-        url: 'https://getdisco.github.io/js-senior-test-task/pages/3.html',
-        rootEl: 'body',
-        targetEl: '.form__actions > .form__action',
-        fields: {
-            holderName: {
-                search: '[placeholder="Holder name"]',
-                required: true
-            },
-            cardNumber: {
-                search: '[placeholder="Card number"]',
-                required: true
-            },
-            expirationDate: {
-                search: '[placeholder="Expiry"]',
-                required: true
-            },
-            cvvCvc: {
-                search: '[placeholder="CVV/CVC"]',
-                required: true
-            }
-        }
+(function () {
+    const POST_MESSAGE_TYPES = {
+        FRAME_FIELDS_FOUND: 'FRAME_FIELDS_FOUND',
+        FILL_FRAME_FIELDS: 'FILL_FRAME_FIELDS'
+    };
+    const ERROR_MESSAGES = {
+        CONFIG_NOT_FOUND: 'Configuration object "dscoConfig" not found',
+        ROOT_NOT_FOUND: 'Root element not found',
+        TARGET_NOT_FOUND: 'Unable to insert button. Target element not found',
+        MISSING_CONFIGURATION: 'Has no configuration found for this URL'
+    };
+    
+    if (!window.dscoConfig) throw new Error(ERROR_MESSAGES.CONFIG_NOT_FOUND);
+    
+    const buttonConfig = window.dscoConfig.buttonConfig;
+    const templates = window.dscoConfig.templates;
+    const targetFields = window.dscoConfig.targetFields;
+    const path = location.origin + location.pathname;
+    
+    const currentTemplate = templates.find(currentConfig => currentConfig && (currentConfig.url === path || currentConfig.frameUrl === path));
+    if (!currentTemplate) return console.log(ERROR_MESSAGES.MISSING_CONFIGURATION);
+    
+    const frameEl = currentTemplate.frameEl && document.querySelector(currentTemplate.frameEl);
+    const frameOrigin = frameEl && getOriginFromPath(frameEl.src);
+    const rootOrigin = getOriginFromPath(currentTemplate.url);
+    
+    const isFrame = window !== window.top && currentTemplate.frameUrl === path;
+    const rootEl = document.querySelector(isFrame ? currentTemplate.frameRootEl : currentTemplate.rootEl);
+    
+    if (!rootEl) throw new Error(ERROR_MESSAGES.ROOT_NOT_FOUND);
+    
+    const hasButton = document.querySelector(`[${buttonConfig.attribute}]`);
+    if (isFrame) {
+        initFrameScript(rootEl, currentTemplate, hasButton)
+    } else {
+        initMainScript(rootEl, currentTemplate, hasButton);
     }
-];
-
-const TARGET_FIELDS = {
-    holderName: 'Ali Gasymov',
-    cardNumber: '5403414685553195',
-    expirationDate: '01/25',
-    cvvCvc: '123'
-}
-
-
-const ERROR_ROOT_NOT_FOUND = 'Root element not found';
-const ERROR_TARGET_NOT_FOUND = 'Unable to insert button. Target element not found';
-
-const buttonConfig = {
-    attribute: 'data-dsco-fill-button',
-    text: 'Autofill',
-    styles: {
-        marginLeft: '10px'
-    }
-}
-
-init();
-
-function init() {
-    const configs = window.dscoConfig;
-    const currentConfig = configs.find(({ url }) => url === location.origin + location.pathname);
     
-    if (!currentConfig) return;
-    
-    const rootEl = document.querySelector(currentConfig.rootEl);
-    if (!rootEl) throw new Error(ERROR_ROOT_NOT_FOUND);
-    
-    const hasButton = document.querySelector(`[${buttonConfig.attribute}]`)
-    
-    if (hasRequiredElements(rootEl, currentConfig.fields) && !hasButton) {
-        addButton();
-    }
-    const observerOptions = { childList: true, subtree: true };
-    const observer = new MutationObserver(handleRootMutation);
-    observer.observe(rootEl, observerOptions);
-    
-    function handleRootMutation(mutationsList) {
-        for (let mutation of mutationsList) {
-            const isAdded = [...mutation.addedNodes].length > 0;
-            if (isAdded && hasRequiredElements(rootEl, currentConfig.fields) && !hasButton) {
-                observer.disconnect();
-                addButton(currentConfig);
-                observer.observe(rootEl, observerOptions);
+    function initFrameScript(rootEl, currentConfig, hasButton) {
+        if (hasRequiredElements(rootEl, currentConfig.fields) && !hasButton) {
+            handleFieldsFound();
+        }
+        initDomObserver(() => {
+            handleFieldsFound();
+        });
+        postMessageListener(rootOrigin, (data) => {
+            const {type} = data;
+            if (type === POST_MESSAGE_TYPES.FILL_FRAME_FIELDS) {
+                fillFormData();
             }
+        });
+    }
+    
+    function initMainScript() {
+        if (hasRequiredElements(rootEl, currentTemplate.fields) && !hasButton) {
+            addButton(fillFormData);
+        }
+        initDomObserver(() => {
+            addButton(fillFormData);
+        });
+        if (currentTemplate.useFrame) {
+            postMessageListener(frameOrigin, (data) => {
+                const {type} = data;
+                console.log(data);
+                if (type === POST_MESSAGE_TYPES.FRAME_FIELDS_FOUND) {
+                    addButton(handleFillClick);
+                }
+            })
         }
     }
-}
-
-function hasRequiredElements(root, fields) {
-    let requiredCount = 0;
-    let foundCount = 0;
-    for (let key in fields) {
-        if (!fields.hasOwnProperty(key) || !fields[key] || !fields[key].required) continue;
-        if (root.querySelector(fields[key].search)) foundCount++;
-        requiredCount++;
-    }
-    return requiredCount !== 0 && requiredCount === foundCount;
-}
-
-function addButton(config) {
-    const targetEl = document.querySelector(config.targetEl);
-    if (!targetEl) throw new Error(ERROR_TARGET_NOT_FOUND);
     
-    const button = document.createElement("button");
-    button.innerHTML = buttonConfig.text;
-    button.setAttribute(buttonConfig.attribute, '1');
-    for (let style in buttonConfig.styles) {
-        button.style[style] = buttonConfig.styles[style]
+    function initDomObserver(callback) {
+        const observerOptions = {childList: true, subtree: true};
+        const hasButton = document.querySelector(`[${buttonConfig.attribute}]`)
+        const handleRootMutation = (mutationsList) => {
+            for (let mutation of mutationsList) {
+                const isAdded = [...mutation.addedNodes].length > 0;
+                if (isAdded && hasRequiredElements(rootEl, currentTemplate.fields) && !hasButton) {
+                    observer.disconnect();
+                    callback();
+                    observer.observe(rootEl, observerOptions);
+                }
+            }
+        }
+        const observer = new MutationObserver(handleRootMutation);
+        observer.observe(rootEl, observerOptions);
     }
-    button.addEventListener("click", () => {
-        fillFormData(config)
-    });
-    targetEl.after(button);
-}
-
-function fillFormData(config) {
-    const rootEl = config.rootEl && document.querySelector(config.rootEl);
-    const fields = config.fields;
-    for (let key in fields) {
-        if (!fields.hasOwnProperty(key) || !fields[key]) continue;
-        const isTargetField = Object.keys(TARGET_FIELDS).includes(key);
-        const input = rootEl.querySelector(fields[key].search);
+    
+    function handleFieldsFound() {
+        window.parent.postMessage({type: POST_MESSAGE_TYPES.FRAME_FIELDS_FOUND}, getOriginFromPath(currentTemplate.url));
+    }
+    
+    function handleFillClick() {
+        frameEl.contentWindow.postMessage({type: POST_MESSAGE_TYPES.FILL_FRAME_FIELDS}, getOriginFromPath(currentTemplate.frameUrl));
+    }
+    
+    function hasRequiredElements(root, fields) {
+        let requiredCount = 0;
+        let foundCount = 0;
+        for (let key in fields) {
+            if (!fields.hasOwnProperty(key) || !fields[key] || !fields[key].required) continue;
+            if (root.querySelector(fields[key].search)) foundCount++;
+            requiredCount++;
+        }
+        return requiredCount !== 0 && requiredCount === foundCount;
+    }
+    
+    function addButton(handler = () => {}) {
+        const targetEl = document.querySelector(currentTemplate.targetEl);
+        if (!targetEl) throw new Error(ERROR_MESSAGES.TARGET_NOT_FOUND);
         
-        if (isTargetField && input && input.nodeName === 'INPUT') {
-            input.value = TARGET_FIELDS[key];
+        const button = document.createElement("button");
+        button.innerHTML = buttonConfig.text;
+        button.setAttribute(buttonConfig.attribute, '1');
+        for (let style in buttonConfig.styles) {
+            button.style[style] = buttonConfig.styles[style]
+        }
+        button.addEventListener("click", handler);
+        targetEl.after(button);
+    }
+    
+    function fillFormData() {
+        const rootEl = currentTemplate.rootEl && document.querySelector(currentTemplate.rootEl);
+        const fields = currentTemplate.fields;
+        for (let key in fields) {
+            if (!fields.hasOwnProperty(key) || !fields[key]) continue;
+            const isTargetField = Object.keys(targetFields).includes(key);
+            const input = rootEl.querySelector(fields[key].search);
+            
+            if (isTargetField && input && input.nodeName === 'INPUT') {
+                input.value = targetFields[key];
+            }
         }
     }
-}
+    
+    function postMessageListener(targetDomain, event) {
+        const eventMethod = window.addEventListener
+            ? 'addEventListener'
+            : 'attachEvent';
+        const eventBus = window[eventMethod];
+        const messageEvent = eventMethod === 'attachEvent' ? 'onmessage' : 'message';
+        
+        eventBus(messageEvent, function (e) {
+            if (e.origin !== targetDomain) {
+                return;
+            }
+            event(e && e.data);
+        });
+    }
+    
+    function getOriginFromPath(path) {
+        if (!path) return '';
+        const pathArray = path.split('/');
+        return pathArray[0] + '//' + pathArray[2];
+    }
+})();

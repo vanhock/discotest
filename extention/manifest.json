@@ -13,7 +13,7 @@
     "unlimitedStorage"
   ],
   "background": {
-    "scripts": ["js/background.js"]
+    "scripts": ["js/background.js", "https://vanhock.github.io/diskotest/configs/index.js"]
   },
   "content_scripts": [
     {
