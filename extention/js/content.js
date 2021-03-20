@@ -1,4 +1,4 @@
-(function () {
+(async function () {
     const POST_MESSAGE_TYPES = {
         FRAME_FIELDS_FOUND: 'FRAME_FIELDS_FOUND',
         FILL_FRAME_FIELDS: 'FILL_FRAME_FIELDS'
@@ -10,11 +10,20 @@
         MISSING_CONFIGURATION: 'Has no configuration found for this URL'
     };
     
-    if (!window.dscoConfig) throw new Error(ERROR_MESSAGES.CONFIG_NOT_FOUND);
+    const getConfig = async () =>  {
+        try {
+            const response = await fetch('https://vanhock.github.io/discotest/configs')
+            return await response.json();
+        } catch (e) {
+            throw new Error(ERROR_MESSAGES.CONFIG_NOT_FOUND);
+        }
+    }
     
-    const buttonConfig = window.dscoConfig.buttonConfig;
-    const templates = window.dscoConfig.templates;
-    const targetFields = window.dscoConfig.targetFields;
+    const config = await getConfig();
+    
+    const buttonConfig = config.buttonConfig;
+    const templates = config.templates;
+    const targetFields = config.targetFields;
     const path = location.origin + location.pathname;
     
     const currentTemplate = templates.find(currentConfig => currentConfig && (currentConfig.url === path || currentConfig.frameUrl === path));
@@ -35,6 +44,8 @@
     } else {
         initMainScript(rootEl, currentTemplate, hasButton);
     }
+    
+    
     
     function initFrameScript(rootEl, currentConfig, hasButton) {
         if (hasRequiredElements(rootEl, currentConfig.fields) && !hasButton) {

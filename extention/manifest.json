@@ -5,16 +5,16 @@
   "manifest_version": 2,
   "permissions": [
     "tabs",
+    "activeTab",
     "cookies",
     "webNavigation",
     "webRequest",
     "<all_urls>",
     "storage",
-    "unlimitedStorage",
-    "https://vanhock.github.io"
+    "unlimitedStorage"
   ],
   "background": {
-    "scripts": ["js/background.js", "https://vanhock.github.io/discotest/configs/index.js"]
+    "scripts": ["js/background.js"]
   },
   "content_scripts": [
     {
