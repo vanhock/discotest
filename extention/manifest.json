@@ -4,21 +4,12 @@
   "description": "test task",
   "manifest_version": 2,
   "permissions": [
-    "tabs",
-    "activeTab",
-    "cookies",
-    "webNavigation",
     "webRequest",
-    "<all_urls>",
-    "storage",
-    "unlimitedStorage"
+    "<all_urls>"
   ],
-  "background": {
-    "scripts": ["js/background.js"]
-  },
   "content_scripts": [
     {
-      "js": ["js/content.js"],
+      "js": ["content.js"],
       "matches": ["<all_urls>"]
     }
   ]
