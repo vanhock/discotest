@@ -64,9 +64,7 @@
       "rootEl": "body",
       "targetEl": ".form__actions > .form__action",
       "useFrame": true,
-      "frameUrl": "https://getdisco.github.io/js-senior-test-task/pages/iframe.html",
       "frameEl": "iframe",
-      "frameRootEl": "body",
       "fields": {
         "holderName": {
           "search": "[placeholder='Holder name']",
