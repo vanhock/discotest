@@ -71,7 +71,6 @@
         if (currentTemplate.useFrame) {
             postMessageListener(frameOrigin, (data) => {
                 const {type} = data;
-                console.log(data);
                 if (type === POST_MESSAGE_TYPES.FRAME_FIELDS_FOUND) {
                     addButton(handleFillClick);
                 }
