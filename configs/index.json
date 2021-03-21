@@ -9,7 +9,7 @@
     "attribute": "data-dsco-fill-button",
     "text": "Autofill",
     "styles": {
-      "marginLeft":" '10px'"
+      "marginLeft": "10px"
     }
   },
   "templates": [
