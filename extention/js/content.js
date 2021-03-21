@@ -45,8 +45,6 @@
         initMainScript(rootEl, currentTemplate, hasButton);
     }
     
-    
-    
     function initFrameScript(rootEl, currentConfig, hasButton) {
         if (hasRequiredElements(rootEl, currentConfig.fields) && !hasButton) {
             handleFieldsFound();
@@ -124,7 +122,9 @@
         button.innerHTML = buttonConfig.text;
         button.setAttribute(buttonConfig.attribute, '1');
         for (let style in buttonConfig.styles) {
-            button.style[style] = buttonConfig.styles[style]
+            if (buttonConfig.styles.hasOwnProperty(style)) {
+                button.style[style] = buttonConfig.styles[style]
+            }
         }
         button.addEventListener("click", handler);
         targetEl.after(button);
