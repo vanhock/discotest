@@ -4,7 +4,7 @@
         FILL_FRAME_FIELDS: 'FILL_FRAME_FIELDS'
     };
     const ERROR_MESSAGES = {
-        CONFIG_NOT_FOUND: 'Configuration object "dscoConfig" not found',
+        CONFIG_NOT_FOUND: 'Configuration object not found',
         ROOT_NOT_FOUND: 'Root element not found',
         TARGET_NOT_FOUND: 'Unable to insert button. Target element not found',
         MISSING_CONFIGURATION: 'Has no configuration found for this URL'
