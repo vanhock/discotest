@@ -1,13 +1,11 @@
 (async function () {
-    const POST_MESSAGE_TYPES = {
-        FRAME_FIELDS_FOUND: 'FRAME_FIELDS_FOUND',
-        FILL_FRAME_FIELDS: 'FILL_FRAME_FIELDS'
-    };
     const ERROR_MESSAGES = {
         CONFIG_NOT_FOUND: 'Configuration object "dscoConfig" not found',
         ROOT_NOT_FOUND: 'Root element not found',
         TARGET_NOT_FOUND: 'Unable to insert button. Target element not found',
-        MISSING_CONFIGURATION: 'Has no configuration found for this URL'
+        MISSING_CONFIGURATION: 'Has no configuration found for this URL',
+        FRAME_NOT_FOUND: 'Unable to locate iframe by frameEl',
+        FRAME_LOAD_ERROR: 'Unable to load frame data'
     };
     
     const getConfig = async () =>  {
@@ -25,58 +23,26 @@
     const templates = config.templates;
     const targetFields = config.targetFields;
     const path = location.origin + location.pathname;
+    const currentTemplate = templates.find(currentConfig => currentConfig && (currentConfig.url === path));
     
-    const currentTemplate = templates.find(currentConfig => currentConfig && (currentConfig.url === path || currentConfig.frameUrl === path));
     if (!currentTemplate) return console.log(ERROR_MESSAGES.MISSING_CONFIGURATION);
     
-    const frameEl = currentTemplate.frameEl && document.querySelector(currentTemplate.frameEl);
-    const frameOrigin = frameEl && getOriginFromPath(frameEl.src);
-    const rootOrigin = getOriginFromPath(currentTemplate.url);
+    if (currentTemplate.useFrame) await initFrame();
     
-    const isFrame = window !== window.top && currentTemplate.frameUrl === path;
-    const rootEl = document.querySelector(isFrame ? currentTemplate.frameRootEl : currentTemplate.rootEl);
+    const rootEl = currentTemplate.useFrame ?
+        document.querySelector(currentTemplate.frameEl).contentDocument.querySelector(currentTemplate.rootEl) :
+        document.querySelector(currentTemplate.rootEl);
     
     if (!rootEl) throw new Error(ERROR_MESSAGES.ROOT_NOT_FOUND);
-    
     const hasButton = document.querySelector(`[${buttonConfig.attribute}]`);
-    if (isFrame) {
-        initFrameScript(rootEl, currentTemplate, hasButton)
-    } else {
-        initMainScript(rootEl, currentTemplate, hasButton);
+    
+    if (hasRequiredElements(rootEl, currentTemplate.fields) && !hasButton) {
+        addButton(fillFormData);
     }
     
-    function initFrameScript(rootEl, currentConfig, hasButton) {
-        if (hasRequiredElements(rootEl, currentConfig.fields) && !hasButton) {
-            handleFieldsFound();
-        }
-        initDomObserver(() => {
-            handleFieldsFound();
-        });
-        postMessageListener(rootOrigin, (data) => {
-            const {type} = data;
-            if (type === POST_MESSAGE_TYPES.FILL_FRAME_FIELDS) {
-                fillFormData();
-            }
-        });
-    }
-    
-    function initMainScript() {
-        if (hasRequiredElements(rootEl, currentTemplate.fields) && !hasButton) {
-            addButton(fillFormData);
-        }
-        initDomObserver(() => {
-            addButton(fillFormData);
-        });
-        if (currentTemplate.useFrame) {
-            postMessageListener(frameOrigin, (data) => {
-                const {type} = data;
-                console.log(data);
-                if (type === POST_MESSAGE_TYPES.FRAME_FIELDS_FOUND) {
-                    addButton(handleFillClick);
-                }
-            })
-        }
-    }
+    initDomObserver(() => {
+        addButton(fillFormData);
+    });
     
     function initDomObserver(callback) {
         const observerOptions = {childList: true, subtree: true};
@@ -93,14 +59,6 @@
         }
         const observer = new MutationObserver(handleRootMutation);
         observer.observe(rootEl, observerOptions);
-    }
-    
-    function handleFieldsFound() {
-        window.parent.postMessage({type: POST_MESSAGE_TYPES.FRAME_FIELDS_FOUND}, getOriginFromPath(currentTemplate.url));
-    }
-    
-    function handleFillClick() {
-        frameEl.contentWindow.postMessage({type: POST_MESSAGE_TYPES.FILL_FRAME_FIELDS}, getOriginFromPath(currentTemplate.frameUrl));
     }
     
     function hasRequiredElements(root, fields) {
@@ -131,7 +89,6 @@
     }
     
     function fillFormData() {
-        const rootEl = currentTemplate.rootEl && document.querySelector(currentTemplate.rootEl);
         const fields = currentTemplate.fields;
         for (let key in fields) {
             if (!fields.hasOwnProperty(key) || !fields[key]) continue;
@@ -144,24 +101,17 @@
         }
     }
     
-    function postMessageListener(targetDomain, event) {
-        const eventMethod = window.addEventListener
-            ? 'addEventListener'
-            : 'attachEvent';
-        const eventBus = window[eventMethod];
-        const messageEvent = eventMethod === 'attachEvent' ? 'onmessage' : 'message';
-        
-        eventBus(messageEvent, function (e) {
-            if (e.origin !== targetDomain) {
-                return;
-            }
-            event(e && e.data);
-        });
-    }
-    
-    function getOriginFromPath(path) {
-        if (!path) return '';
-        const pathArray = path.split('/');
-        return pathArray[0] + '//' + pathArray[2];
+    async function initFrame() {
+        const frameEl = document.querySelector(currentTemplate.frameEl);
+        if (!frameEl) throw new Error(ERROR_MESSAGES.FRAME_NOT_FOUND);
+        try {
+            const response = await fetch(frameEl.src);
+            const html = await response.text();
+            frameEl.removeAttribute("src");
+            frameEl.contentDocument.write(html);
+            return Promise.resolve()
+        } catch (e) {
+            throw new Error(ERROR_MESSAGES.FRAME_LOAD_ERROR);
+        }
     }
 })();
