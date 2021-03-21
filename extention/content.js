@@ -39,6 +39,7 @@
     if (!rootEl) throw new Error(ERROR_MESSAGES.ROOT_NOT_FOUND);
     
     const hasButton = document.querySelector(`[${buttonConfig.attribute}]`);
+    
     if (isFrame) {
         initFrameScript(rootEl, currentTemplate, hasButton)
     } else {
