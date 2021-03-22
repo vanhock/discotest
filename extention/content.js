@@ -39,7 +39,6 @@
     if (!rootEl) throw new Error(ERROR_MESSAGES.ROOT_NOT_FOUND);
     
     const hasButton = document.querySelector(`[${buttonConfig.attribute}]`);
-    
     if (isFrame) {
         initFrameScript(rootEl, currentTemplate, hasButton)
     } else {
@@ -53,7 +52,7 @@
         initDomObserver(() => {
             handleFieldsFound();
         });
-        postMessageListener(rootOrigin, (data) => {
+        messageListener(rootOrigin, (data) => {
             const {type} = data;
             if (type === POST_MESSAGE_TYPES.FILL_FRAME_FIELDS) {
                 fillFormData();
@@ -69,8 +68,9 @@
             addButton(fillFormData);
         });
         if (currentTemplate.useFrame) {
-            postMessageListener(frameOrigin, (data) => {
+            messageListener(frameOrigin, (data) => {
                 const {type} = data;
+                console.log(data);
                 if (type === POST_MESSAGE_TYPES.FRAME_FIELDS_FOUND) {
                     addButton(handleFillClick);
                 }
@@ -96,11 +96,11 @@
     }
     
     function handleFieldsFound() {
-        window.parent.postMessage({type: POST_MESSAGE_TYPES.FRAME_FIELDS_FOUND}, getOriginFromPath(currentTemplate.url));
+        chrome.runtime.sendMessage({type: POST_MESSAGE_TYPES.FRAME_FIELDS_FOUND})
     }
     
     function handleFillClick() {
-        frameEl.contentWindow.postMessage({type: POST_MESSAGE_TYPES.FILL_FRAME_FIELDS}, getOriginFromPath(currentTemplate.frameUrl));
+        chrome.runtime.sendMessage({type: POST_MESSAGE_TYPES.FILL_FRAME_FIELDS})
     }
     
     function hasRequiredElements(root, fields) {
@@ -144,19 +144,8 @@
         }
     }
     
-    function postMessageListener(targetDomain, event) {
-        const eventMethod = window.addEventListener
-            ? 'addEventListener'
-            : 'attachEvent';
-        const eventBus = window[eventMethod];
-        const messageEvent = eventMethod === 'attachEvent' ? 'onmessage' : 'message';
-        
-        eventBus(messageEvent, function (e) {
-            if (e.origin !== targetDomain) {
-                return;
-            }
-            event(e && e.data);
-        });
+    function messageListener(targetDomain, event) {
+        chrome.runtime.onMessage.addListener((data) => event(data));
     }
     
     function getOriginFromPath(path) {
